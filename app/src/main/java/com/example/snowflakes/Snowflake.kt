@@ -3,6 +3,7 @@ package com.example.snowflakes
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import kotlin.math.sin
 
 class Snowflake(
@@ -57,10 +58,27 @@ class Snowflake(
     private val turbulenceFrequency = 0.5f + Math.random().toFloat() * 1.5f
     private val turbulenceStrength = 0.2f + Math.random().toFloat() * 0.4f
 
+    private val depth = Math.random().toFloat()
+    private val scale = 0.5f + depth * 0.8f
+
+    private var melting = false
+    private var meltProgress = 0f
+    
+    private var velocityX = 0f
+    private var velocityY = 0f
+    private var isStuck = false
+    
     fun move(speed: Float, windStrength: Float, time: Float) {
+        if (isStuck) return
+        
+        val depthSpeed = 0.3f + depth * 0.7f
         val slowdown = 1 - (y / 10000f)
         
-        y += speed * fallSpeed * slowdown
+        x += velocityX
+        y += velocityY + (speed * fallSpeed * depthSpeed * slowdown)
+        
+        velocityX *= 0.95f
+        velocityY *= 0.95f
         
         angle += frequency
         val windEffect = windStrength * windSensitivity
@@ -77,10 +95,23 @@ class Snowflake(
     }
 
     fun draw(canvas: Canvas) {
-        paint.alpha = baseAlpha
+        val currentAlpha = if (melting) {
+            (baseAlpha * depth * (1f - meltProgress)).toInt()
+        } else {
+            (baseAlpha * depth).toInt()
+        }
+        paint.alpha = currentAlpha
         
         canvas.save()
         canvas.translate(x, y)
+        
+        val currentScale = if (melting) {
+            scale * (1f - meltProgress)
+        } else {
+            scale
+        }
+        canvas.scale(currentScale, currentScale)
+        
         canvas.rotate(rotation)
 
         val angleStep = 360f / branchCount
@@ -156,9 +187,60 @@ class Snowflake(
             paint.style = Paint.Style.STROKE
             canvas.drawCircle(0f, 0f, size * 0.12f, paint)
         }
-
-        paint.alpha = (baseAlpha * (1f - Math.min(Math.abs(rotationSpeed) * 0.2f, 0.5f))).toInt()
         
         canvas.restore()
+    }
+
+    fun update(deltaTime: Float) {
+        if (melting) {
+            meltProgress += deltaTime * 0.5f
+            if (meltProgress >= 1f) {
+                reset()
+            }
+        }
+    }
+
+    private fun reset() {
+        melting = false
+        meltProgress = 0f
+        y = -50f
+        x = (Math.random() * 1000).toFloat()
+        isStuck = false
+        velocityX = 0f
+        velocityY = 0f
+    }
+
+    fun handleCollision(obstacle: RectF) {
+        if (!isStuck) {
+            when ((Math.random() * 3).toInt()) {
+                0 -> { // Скольжение по препятствию
+                    val obstacleAngle = if (obstacle.width() > obstacle.height()) {
+                        0f // Горизонтальное препятствие
+                    } else {
+                        90f // Вертикальное препятствие
+                    }
+                    
+                    // Изменяем направление движения вдоль препятствия
+                    velocityX = Math.cos(Math.toRadians(obstacleAngle.toDouble())).toFloat() * 2f
+                    velocityY = Math.sin(Math.toRadians(obstacleAngle.toDouble())).toFloat() * 2f
+                }
+                1 -> { // Прилипание к препятствию
+                    isStuck = true
+                    velocityX = 0f
+                    velocityY = 0f
+                }
+                2 -> { // Отскок
+                    velocityX = (-2f + Math.random().toFloat() * 4f)
+                    velocityY = -Math.random().toFloat() * 4f
+                }
+            }
+        }
+    }
+
+    fun applyForce(forceX: Float, forceY: Float) {
+        if (!isStuck) {
+            velocityX += forceX
+            velocityY += forceY
+        }
     }
 } 
