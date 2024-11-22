@@ -23,73 +23,142 @@ class Snowflake(
     private val windEffect = (-0.3f + Math.random().toFloat() * 0.6f)
     private val phaseShift = (Math.random() * Math.PI * 2).toFloat()
     
-    private val branchLengthVariation = 0.8f + Math.random().toFloat() * 0.4f
-    private val sideLength = (0.2f + Math.random().toFloat() * 0.2f)
-    private val sideAngle = (25f + Math.random().toFloat() * 15f)
+    private val branchCount = (5 + (Math.random() * 3).toInt())
+    private val branchLengthVariation = 0.7f + Math.random().toFloat() * 0.6f
+    private val subBranchCount = (2 + (Math.random() * 4).toInt())
+    private val subBranchLengths = List(subBranchCount) { 0.2f + Math.random().toFloat() * 0.3f }
+    private val subBranchAngles = List(subBranchCount) { 20f + Math.random().toFloat() * 40f }
+    private val subBranchPositions = List(subBranchCount) { 0.2f + Math.random().toFloat() * 0.6f }
+    
+    private val hasSpikes = Math.random() > 0.5
+    private val spikeCount = if (hasSpikes) (3 + (Math.random() * 4).toInt()) else 0
+    private val spikePositions = List(spikeCount) { 0.1f + Math.random().toFloat() * 0.8f }
+    private val spikeLengths = List(spikeCount) { 0.05f + Math.random().toFloat() * 0.1f }
+    
+    private val hasCrystals = Math.random() > 0.6
+    private val crystalSize = 0.1f + Math.random().toFloat() * 0.15f
+    private val crystalCount = if (hasCrystals) (2 + (Math.random() * 3).toInt()) else 0
+    private val crystalPositions = List(crystalCount) { 0.3f + Math.random().toFloat() * 0.5f }
+    
     private val centerSize = 2f + Math.random().toFloat() * 2f
     private val hasExtraDetails = Math.random() > 0.3
+    
+    private val baseAlpha = (180 + Math.random() * 75).toInt()
     
     private val paint = Paint().apply {
         color = this@Snowflake.color
         style = Paint.Style.STROKE
         strokeWidth = 1f + (Math.random().toFloat() * 1.5f)
         isAntiAlias = true
-        alpha = (180 + Math.random() * 75).toInt()
+        alpha = baseAlpha
     }
 
-    fun move(speed: Float) {
+    private val windSensitivity = 0.8f + Math.random().toFloat() * 0.4f
+    private val turbulenceFrequency = 0.5f + Math.random().toFloat() * 1.5f
+    private val turbulenceStrength = 0.2f + Math.random().toFloat() * 0.4f
+
+    fun move(speed: Float, windStrength: Float, time: Float) {
         val slowdown = 1 - (y / 10000f)
+        
         y += speed * fallSpeed * slowdown
+        
         angle += frequency
-        x += (Math.sin(angle.toDouble() + phaseShift) * amplitude + 
-              Math.sin(angle.toDouble() * 0.5 + phaseShift) * (amplitude * 0.3) + 
-              windEffect).toFloat() * slowdown
+        val windEffect = windStrength * windSensitivity
+        val turbulence = Math.sin(time * turbulenceFrequency + x * 0.1).toFloat() * turbulenceStrength
+        
+        x += ((Math.sin(angle.toDouble() + phaseShift) * amplitude + 
+               Math.sin(angle.toDouble() * 0.5 + phaseShift) * (amplitude * 0.3) + 
+               windEffect + turbulence) * slowdown).toFloat()
+
         rotationAngle += rotationFrequency
-        rotation += rotationSpeed * (1 + Math.sin(rotationAngle.toDouble()) * rotationAmplitude).toFloat()
+        val windRotationEffect = Math.abs(windStrength) * 0.5f
+        rotation += (rotationSpeed * (1 + Math.sin(rotationAngle.toDouble()) * rotationAmplitude) + 
+                    windRotationEffect).toFloat()
     }
 
     fun draw(canvas: Canvas) {
-        canvas.save()
+        paint.alpha = baseAlpha
         
+        canvas.save()
         canvas.translate(x, y)
         canvas.rotate(rotation)
 
-        for (i in 0..5) {
+        val angleStep = 360f / branchCount
+        repeat(branchCount) { i ->
+            canvas.save()
+            canvas.rotate(angleStep * i)
+            
             canvas.drawLine(0f, 0f, 0f, size * branchLengthVariation, paint)
             
-            val sideX = size * sideLength
-            val sideY = size * 0.4f
-            canvas.save()
-            canvas.rotate(sideAngle)
-            canvas.drawLine(0f, sideY, sideX, sideY * 1.2f, paint)
-            canvas.restore()
-            
-            canvas.save()
-            canvas.rotate(-sideAngle)
-            canvas.drawLine(0f, sideY, -sideX, sideY * 1.2f, paint)
-            canvas.restore()
-
-            if (hasExtraDetails) {
-                canvas.drawLine(0f, size * 0.7f, size * 0.15f, size * 0.8f, paint)
-                canvas.drawLine(0f, size * 0.7f, -size * 0.15f, size * 0.8f, paint)
+            subBranchPositions.forEachIndexed { index, pos ->
+                val y = size * branchLengthVariation * pos
+                val length = size * subBranchLengths[index]
+                val angle = subBranchAngles[index]
                 
-                paint.strokeWidth = paint.strokeWidth * 0.5f
-                canvas.drawLine(0f, size * 0.3f, size * 0.1f, size * 0.35f, paint)
-                canvas.drawLine(0f, size * 0.3f, -size * 0.1f, size * 0.35f, paint)
-                paint.strokeWidth = paint.strokeWidth * 2f
+                canvas.save()
+                canvas.translate(0f, y)
+                
+                canvas.save()
+                canvas.rotate(angle)
+                canvas.drawLine(0f, 0f, length, 0f, paint)
+                canvas.restore()
+                
+                canvas.save()
+                canvas.rotate(-angle)
+                canvas.drawLine(0f, 0f, -length, 0f, paint)
+                canvas.restore()
+                
+                canvas.restore()
             }
-
-            canvas.rotate(60f)
+            
+            if (hasSpikes) {
+                spikePositions.forEachIndexed { index, pos ->
+                    val y = size * branchLengthVariation * pos
+                    val spikeLength = size * spikeLengths[index]
+                    
+                    canvas.save()
+                    canvas.translate(0f, y)
+                    canvas.rotate(45f)
+                    canvas.drawLine(0f, 0f, spikeLength, 0f, paint)
+                    canvas.restore()
+                }
+            }
+            
+            if (hasCrystals) {
+                paint.style = Paint.Style.STROKE
+                crystalPositions.forEach { pos ->
+                    val y = size * branchLengthVariation * pos
+                    val crystalRadius = size * crystalSize
+                    
+                    canvas.save()
+                    canvas.translate(0f, y)
+                    
+                    val path = android.graphics.Path().apply {
+                        moveTo(0f, -crystalRadius)
+                        lineTo(crystalRadius * 0.7f, 0f)
+                        lineTo(0f, crystalRadius)
+                        lineTo(-crystalRadius * 0.7f, 0f)
+                        close()
+                    }
+                    canvas.drawPath(path, paint)
+                    
+                    canvas.restore()
+                }
+            }
+            
+            canvas.restore()
         }
 
         paint.style = Paint.Style.FILL
         canvas.drawCircle(0f, 0f, centerSize, paint)
         
-        if (hasExtraDetails) {
+        if (Math.random() > 0.5) {
             paint.style = Paint.Style.STROKE
             canvas.drawCircle(0f, 0f, size * 0.12f, paint)
         }
 
+        paint.alpha = (baseAlpha * (1f - Math.min(Math.abs(rotationSpeed) * 0.2f, 0.5f))).toInt()
+        
         canvas.restore()
     }
 } 
