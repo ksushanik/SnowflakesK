@@ -11,25 +11,31 @@ class Snowflake(
     private val size: Float,
     private val color: Int
 ) {
-    private var angle: Float = 0f
-    private val amplitude = 20f
-    private val frequency = 0.01f
-    private var rotation = 0f
+    private var angle = (Math.random() * Math.PI * 2).toFloat()
+    private val amplitude = (2f + Math.random().toFloat() * 15f)
+    private val frequency = (0.001f + Math.random().toFloat() * 0.008f)
+    private var rotation = (Math.random() * 360).toFloat()
+    private val rotationSpeed = (-0.5f + Math.random().toFloat() * 1f)
+    private val fallSpeed = (1f + Math.random().toFloat() * 2f)
+    private val windEffect = (-0.3f + Math.random().toFloat() * 0.6f)
+    private val phaseShift = (Math.random() * Math.PI * 2).toFloat()
     
     private val paint = Paint().apply {
-        color = Color.WHITE
+        color = this@Snowflake.color
         style = Paint.Style.STROKE
-        strokeWidth = 2f
+        strokeWidth = 1.5f + (Math.random().toFloat() * 1f)
         isAntiAlias = true
-        alpha = 255
+        alpha = (200 + Math.random() * 55).toInt()
     }
 
     fun move(speed: Float) {
-        val slowdown = 1 - (y / 8000f)
-        y += speed * slowdown
+        val slowdown = 1 - (y / 10000f)
+        y += speed * fallSpeed * slowdown
         angle += frequency
-        x += sin(angle) * amplitude * slowdown
-        rotation += 0.5f
+        x += (Math.sin(angle.toDouble() + phaseShift) * amplitude + 
+              Math.sin(angle.toDouble() * 0.5 + phaseShift) * (amplitude * 0.3) + 
+              windEffect).toFloat() * slowdown
+        rotation += rotationSpeed * (1 + Math.sin(angle.toDouble()) * 0.2).toFloat()
     }
 
     fun draw(canvas: Canvas) {

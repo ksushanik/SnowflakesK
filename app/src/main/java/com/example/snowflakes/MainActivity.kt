@@ -25,11 +25,20 @@ class SnowflakesView(context: Context) : View(context) {
 
     init {
         post {
-            repeat(20) {
+            repeat(100) {
                 val x = random.nextFloat() * width
-                val y = random.nextFloat() * height
-                val size = random.nextFloat() * 20f + 20f
-                snowflakes.add(Snowflake(x, y, size, Color.argb(255, 255, 255, 255)))
+                val y = random.nextFloat() * height * 2 - height
+                val size = random.nextFloat() * 20f + 10f
+                val color = when (random.nextInt(7)) {
+                    0 -> Color.rgb(255, 255, 255)
+                    1 -> Color.rgb(200, 220, 255)
+                    2 -> Color.rgb(180, 200, 255)
+                    3 -> Color.rgb(220, 220, 255)
+                    4 -> Color.rgb(240, 240, 255)
+                    5 -> Color.rgb(230, 230, 250)
+                    else -> Color.rgb(248, 248, 255)
+                }
+                snowflakes.add(Snowflake(x, y, size, color))
             }
             startAnimation()
         }
@@ -52,21 +61,21 @@ class SnowflakesView(context: Context) : View(context) {
         override fun doInBackground(vararg params: Void?): Void? {
             while (!isCancelled) {
                 snowflakes.forEach { snowflake ->
-                    snowflake.move(2f)
+                    snowflake.move(3f)
 
                     if (snowflake.y > height + 50f) {
                         snowflake.y = -50f
                         snowflake.x = random.nextFloat() * width
                     }
-                    if (snowflake.x > width + 50f) {
-                        snowflake.x = -50f
+                    if (snowflake.x > width + 100f) {
+                        snowflake.x = -100f
                     }
-                    if (snowflake.x < -50f) {
-                        snowflake.x = width.toFloat()
+                    if (snowflake.x < -100f) {
+                        snowflake.x = width.toFloat() + 100f
                     }
                 }
                 postInvalidate()
-                Thread.sleep(32)
+                Thread.sleep(16)
             }
             return null
         }
